@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layout>
+    <data>
+        <import type="android.view.View" />
+        <import type="androidx.core.content.ContextCompat" />
+<variable
+    name="viewmodel"
+    type="com.streamliner.base_architecture.tasks.TasksViewModel" />
+    </data>
+
+</layout>

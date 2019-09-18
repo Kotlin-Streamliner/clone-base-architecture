@@ -4,6 +4,8 @@ apply plugin: 'kotlin-android'
 
 apply plugin: 'kotlin-android-extensions'
 
+apply plugin: 'kotlin-kapt'
+
 android {
     compileSdkVersion 28
     buildToolsVersion "29.0.2"
@@ -21,6 +23,11 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    dataBinding {
+        enabled = true
+        enabledForTests = true
+    }
 }
 
 dependencies {
@@ -36,5 +43,9 @@ dependencies {
     implementation "androidx.appcompat:appcompat:$appCompatVersion"
 
     // Architecture Components
+    // Architecture Components
+    implementation "androidx.room:room-runtime:$roomVersion"
+    kapt "androidx.room:room-compiler:$roomVersion"
+    implementation "androidx.room:room-ktx:$roomVersion"
     implementation "androidx.navigation:navigation-ui-ktx:$navigationVersion"
 }

@@ -37,4 +37,5 @@ ext {
 
     // App dependencies
     appCompatVersion = '1.0.2'
+    roomVersion = '2.1.0'
 }
