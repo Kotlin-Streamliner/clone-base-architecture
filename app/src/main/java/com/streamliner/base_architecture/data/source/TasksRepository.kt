@@ -3,6 +3,9 @@ package com.streamliner.base_architecture.data.source
 import com.streamliner.base_architecture.data.Task
 import com.streamliner.base_architecture.data.Result
 
+/**
+ * Interface to the data layer.
+ */
 interface TasksRepository {
 
     suspend fun getTasks(forceUpdate: Boolean = false) : Result<List<Task>>

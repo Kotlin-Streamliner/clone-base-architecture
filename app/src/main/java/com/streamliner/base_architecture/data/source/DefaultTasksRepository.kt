@@ -2,13 +2,17 @@ package com.streamliner.base_architecture.data.source
 
 import com.streamliner.base_architecture.data.Result
 import com.streamliner.base_architecture.data.Task
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import java.lang.Exception
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
 
+/**
+ * Concrete implementation to load tasks from the data sources into  a cache.
+ *
+ * To simplify the sample, this repository only uses the local data source only if the remote
+ * data sources fails. Remote is the source of truth.
+ */
 class DefaultTasksRepository(
     private val tasksRemoteDataSource: TasksDataSource,
     private val tasksLocalDataSource: TasksDataSource,
@@ -67,6 +71,60 @@ class DefaultTasksRepository(
         if (localTasks is Result.Success) return localTasks
         return Result.Error(Exception("Error fetching from remote and local"))
     }
+
+    /**
+     * Relies on [getTasks] to fetch data and picks the task with the same ID.
+     */
+    override suspend fun getTask(taskId: String, forceUpdate: Boolean): Result<Task> {
+        return withContext(ioDispatcher) {
+            // Respond immediately with cache if available
+            if (!forceUpdate) {
+                getTaskWithId(taskId)?.let {
+                    return@withContext Result.Success(it)
+                }
+            }
+
+            val newTask = fetchTaskFromRemoteOrLocal(taskId, forceUpdate)
+
+            // Refresh the cache with new tasks
+            (newTask as? Result.Success)?.let { cacheTask(it.data) }
+
+            return@withContext newTask
+        }
+    }
+
+    private suspend fun fetchTaskFromRemoteOrLocal(taskId: String, forceUpdate: Boolean): Result<Task> {
+        // Remote first
+        val remoteTask = tasksRemoteDataSource.getTask(taskId)
+        when(remoteTask) {
+            is Result.Error -> Timber.w("Remote data source fetch failed")
+            is Result.Success -> {
+                refreshLocalDataSource(remoteTask.data as List<Task>)
+                return remoteTask
+            }
+            else -> throw IllegalStateException()
+        }
+
+        // Don't read from local if it's forced
+        if (forceUpdate) return Result.Error(Exception("Refresh Failed"))
+
+        // Local if remote fails
+        val localTasks = tasksLocalDataSource.getTask(taskId)
+        if (localTasks is Result.Success) return localTasks
+        return Result.Error(Exception("Error fetching from remote and local"))
+    }
+
+    override suspend fun saveTask(task: Task) {
+        // Do in memory cache update to keep the app UI up to date
+        cacheAndPerform(task){
+            coroutineScope(
+                CoroutineScope.launch { tasksRemoteDataSource.saveTask(task)}
+                launch { tasksLocalDataSource.saveTask(task)}
+            )
+        }
+    }
+
+    private fun getTaskWithId(id: String) = cachedTasks?.get(id)
 
     private fun refreshCache(tasks: List<Task>) {
         cachedTasks?.clear()

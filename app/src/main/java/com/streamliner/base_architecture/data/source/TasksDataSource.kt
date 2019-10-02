@@ -3,6 +3,9 @@ package com.streamliner.base_architecture.data.source
 import com.streamliner.base_architecture.data.Task
 import com.streamliner.base_architecture.data.Result
 
+/**
+ *  Main entry point for accessing tasks data.
+ */
 interface TasksDataSource {
 
     suspend fun getTasks(): Result<List<Task>>
