@@ -3,6 +3,7 @@ package com.streamliner.base_architecture.data.source
 import com.streamliner.base_architecture.data.Result
 import com.streamliner.base_architecture.data.Task
 import kotlinx.coroutines.*
+import timber.log.Timber
 import java.lang.Exception
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentMap
@@ -45,7 +46,7 @@ class DefaultTasksRepository(
                 }
             }
 
-            return@withContext Error(Exception("Illegal state"))
+            return@withContext Result.Error(Exception("Illegal state"))
         }
     }
 
@@ -117,19 +118,83 @@ class DefaultTasksRepository(
     override suspend fun saveTask(task: Task) {
         // Do in memory cache update to keep the app UI up to date
         cacheAndPerform(task){
-            coroutineScope(
-                CoroutineScope.launch { tasksRemoteDataSource.saveTask(task)}
-                launch { tasksLocalDataSource.saveTask(task)}
-            )
+            coroutineScope {
+                launch { tasksRemoteDataSource.saveTask(it) }
+                launch { tasksLocalDataSource.saveTask(it) }
+            }
         }
     }
 
-    private fun getTaskWithId(id: String) = cachedTasks?.get(id)
+    override suspend fun completeTask(task: Task) {
+        // Do in memory cache update to keep the app UI up to date
+        cacheAndPerform(task) {
+            it.isCompleted = true
+            coroutineScope {
+                launch { tasksRemoteDataSource.completeTask(it) }
+                launch { tasksLocalDataSource.completeTask(it) }
+            }
+        }
+    }
+
+    override suspend fun completeTask(taskId: String) {
+        withContext(ioDispatcher) {
+            getTaskWithId(taskId)?.let {
+                completeTask(it)
+            }
+        }
+    }
+
+    override suspend fun activateTask(task: Task) {
+        // Do in memory cache update to keep the app UI up to date
+        cacheAndPerform(task) {
+            it.isCompleted = false
+            coroutineScope {
+                launch { tasksRemoteDataSource.activateTask(it) }
+                launch { tasksLocalDataSource.activateTask(it) }
+            }
+        }
+    }
+
+    override suspend fun activateTask(taskId: String) {
+        withContext(ioDispatcher) {
+            getTaskWithId(taskId)?.let {
+                activateTask(it)
+            }
+        }
+    }
+
+    override suspend fun clearCompletedTasks() {
+        coroutineScope {
+            launch { tasksRemoteDataSource.clearCompletedTasks() }
+            launch { tasksLocalDataSource.clearCompletedTasks() }
+        }
+        withContext(ioDispatcher) {
+            cachedTasks?.entries?.removeAll { it.value.isCompleted }
+        }
+    }
+
+    override suspend fun deleteAllTasks() {
+        withContext(ioDispatcher) {
+            coroutineScope {
+                launch { tasksRemoteDataSource.deleteAllTasks() }
+                launch { tasksLocalDataSource.deleteAllTasks() }
+            }
+        }
+        cachedTasks?.clear()
+    }
+
+    override suspend fun deleteTask(taskId: String) {
+        coroutineScope {
+            launch { tasksRemoteDataSource.deleteTask(taskId) }
+            launch { tasksLocalDataSource.deleteTask(taskId) }
+        }
+        cachedTasks?.remove(taskId)
+    }
 
     private fun refreshCache(tasks: List<Task>) {
         cachedTasks?.clear()
         tasks.sortedBy { it.id }.forEach {
-            cacheAndPerform(it){}
+            cacheAndPerform(it) {}
         }
     }
 
@@ -140,10 +205,11 @@ class DefaultTasksRepository(
         }
     }
 
-    private inline fun cacheAndPerform(task: Task, perform: (Task) -> Unit) {
-        val cachedTask = cacheTask(task)
-        perform(cachedTask)
+    private suspend fun refreshLocalDataSource(task: Task) {
+        tasksLocalDataSource.saveTask(task)
     }
+
+    private fun getTaskWithId(id: String) = cachedTasks?.get(id)
 
     private fun cacheTask(task: Task) : Task {
         val cachedTask = Task(task.title, task.description, task.isCompleted, task.id)
@@ -153,6 +219,11 @@ class DefaultTasksRepository(
         }
         cachedTasks?.put(cachedTask.id, cachedTask)
         return cachedTask
+    }
+
+    private inline fun cacheAndPerform(task: Task, perform: (Task) -> Unit) {
+        val cachedTask = cacheTask(task)
+        perform(cachedTask)
     }
 
 }

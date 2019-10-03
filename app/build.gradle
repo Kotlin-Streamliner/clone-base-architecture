@@ -24,6 +24,19 @@ android {
         }
     }
 
+    flavorDimensions "default"
+
+    // If you need to add more flavors, consider using dimensions.
+    productFlavors {
+        mock {
+            dimension "default"
+            applicationIdSuffix = ".mock"
+        }
+        prod {
+            dimension "default"
+        }
+    }
+
     dataBinding {
         enabled = true
         enabledForTests = true
@@ -41,8 +54,9 @@ dependencies {
 
     // App dependencies
     implementation "androidx.appcompat:appcompat:$appCompatVersion"
+    implementation "com.jakewharton.timber:timber:$timberVersion"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
 
-    // Architecture Components
     // Architecture Components
     implementation "androidx.room:room-runtime:$roomVersion"
     kapt "androidx.room:room-compiler:$roomVersion"
