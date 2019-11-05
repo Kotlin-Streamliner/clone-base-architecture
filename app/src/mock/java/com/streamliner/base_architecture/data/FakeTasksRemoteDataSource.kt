@@ -1,7 +1,5 @@
-package com.streamliner.base_architecture
+package com.streamliner.base_architecture.data
 
-import com.streamliner.base_architecture.data.Result
-import com.streamliner.base_architecture.data.Task
 import com.streamliner.base_architecture.data.source.TasksDataSource
 
 /**

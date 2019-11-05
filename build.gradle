@@ -40,4 +40,5 @@ ext {
     roomVersion = '2.1.0'
     timberVersion = '4.7.1'
     coroutinesVersion = '1.2.1'
+    archLifecycleVersion = '2.1.0-rc01'
 }

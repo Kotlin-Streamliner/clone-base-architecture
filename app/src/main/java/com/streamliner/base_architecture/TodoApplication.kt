@@ -14,7 +14,7 @@ class TodoApplication : Application() {
 
     // Depends on the flavor,
     val taskRepository: TasksRepository
-        get() = ServiceLocator.provideTaskRepository(this)
+        get() = ServiceLocator.provideTasksRepository(this)
 
     override fun onCreate() {
         super.onCreate()
