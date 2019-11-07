@@ -2,14 +2,13 @@ package com.streamliner.base_architecture.tasks
 
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.Transformations
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.*
 import com.streamliner.base_architecture.Event
 import com.streamliner.base_architecture.R
+import com.streamliner.base_architecture.data.Result
 import com.streamliner.base_architecture.data.Task
 import com.streamliner.base_architecture.data.source.TasksRepository
+import kotlinx.coroutines.launch
 
 class TasksViewModel(
     private val tasksRepository: TasksRepository
@@ -100,6 +99,88 @@ class TasksViewModel(
         _noTasksLabel.value = noTasksLabelString
         _noTaskIconRes.value = noTasksIconDrawable
         _addTasksViewVisible.value = tasksAddVisible
+    }
+
+    fun clearCompletedTasks() {
+        viewModelScope.launch {
+            tasksRepository.clearCompletedTasks()
+            showSnackbarMessage(R.string.completed_tasks_cleared)
+            // Refresh list to show the new state
+            loadTasks(false)
+        }
+    }
+
+    fun completeTask(task: Task, completed: Boolean) = viewModelScope.launch {
+        if (completed) {
+            tasksRepository.completeTask(task)
+            showSnackbarMessage(R.string.task_marked_complete)
+        } else {
+            tasksRepository.activateTask(task)
+            showSnackbarMessage(R.string.task_marked_active)
+        }
+    }
+
+    /**
+     * Called by the Data Binding library and the FAB's click listener
+     */
+    fun addNewTask() {
+        _newTaskEvent.value = Event(Unit)
+    }
+
+    /**
+     * Called by Data Binding.
+     */
+    fun openTask(taskId: String) {
+        _openTaskEvent.value = Event(taskId)
+    }
+
+    fun showEditResultMessage(result: Int) {
+        when (result) {
+            EDIT_RESULT_OK -> showSnackbarMessage(R.string.successfully_saved_task_message)
+            ADD_EDIT_RESULT_OK -> showSnackbarMessage(R.string.successfully_added_task_message)
+            DELETE_RESULT_OK -> showSnackbarMessage(R.string.successfully_deleted_task_message)
+        }
+    }
+
+    private fun showSnackbarMessage(@StringRes message: Int) {
+        _snackbarText.value = Event(message)
+    }
+
+    /**
+     * @param forceUpdate Pass in true to refresh the data in the [TasksDataSource]
+     */
+    fun loadTasks(forceUpdate: Boolean) {
+        _dataLoading.value = true
+
+        viewModelScope.launch {
+            val tasksResult = tasksRepository.getTasks(forceUpdate)
+
+            if (tasksResult is Result.Success) {
+                val tasks = tasksResult.data
+
+                val tasksToShow = ArrayList<Task>()
+                // We filter the tasks based on the requestType
+                for (task in tasks) {
+                    when (_currentFiltering) {
+                        TasksFilterType.ALL_TASKS -> tasksToShow.add(task)
+                        TasksFilterType.ACTIVE_TASKS -> if (task.isActive) tasksToShow.add(task)
+                        TasksFilterType.COMPLETED_TASKS -> if (task.isCompleted) tasksToShow.add(task)
+                    }
+                }
+                isDataLoadingError.value = false
+                _items.value = ArrayList(tasksToShow)
+            } else {
+                isDataLoadingError.value = true
+                _items.value = emptyList()
+                showSnackbarMessage(R.string.loading_tasks_error)
+            }
+
+            _dataLoading.value = false
+        }
+    }
+
+    fun refresh() {
+        loadTasks(true)
     }
 
 
