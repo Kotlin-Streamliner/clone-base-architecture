@@ -6,25 +6,26 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.streamliner.base_architecture.data.Task
+import com.streamliner.base_architecture.databinding.TaskItemBinding
 
 
 class TasksAdapter(private val viewModel: TasksViewModel) :
-    ListAdapter<Task, RecyclerView.ViewHolder>(TaskDiffCallback()) {
+    ListAdapter<Task, TasksAdapter.ViewHolder>(TaskDiffCallback()) {
 
-    override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = getItem(position)
 
         holder.bind(viewModel, item)
     }
 
-    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder = ViewHolder.from(parent)
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder = ViewHolder.from(parent)
 
     class ViewHolder private constructor(val binding: TaskItemBinding) : RecyclerView.ViewHolder(binding.root) {
 
         fun bind(viewModel: TasksViewModel, item: Task) {
 
 
-            binding.viewModel = viewModel
+            binding.viewmodel = viewModel
             binding.task = item
             binding.executePendingBindings()
         }
